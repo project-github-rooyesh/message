@@ -36,40 +36,45 @@ class MessageInterface
         $config = Arr::get(config(),'message',false);
         if ($config){
             foreach ($this->list_send as $list){
-              $this->message =  str_replace("%name", $list['name'], $this->message);
+                if (is_null($list['name'])){
+                    $message =  str_replace("%name", 'مشتری عزیز ', $this->message);
+                }else{
+                    $message =  str_replace("%name", $list['name'].' عزیز ', $this->message);
+                }
                 if ($config['0098'] && $config['0098']['active']){
                     $endpoint = "http://www.0098sms.com/sendsmslink.aspx";
                     Http::get($endpoint,[
                         'FROM' => $config['0098']['sender'],
                         'TO' => $list['mobile'],
-                        'TEXT' => trim($this->message),
+                        'TEXT' => trim($message),
                         'USERNAME' => $config['0098']['user_name'],
                         'PASSWORD' => $config['0098']['password'],
                         'DOMAIN' => '0098',
                     ]);
                     $this->type = '0098';
-                    $this->store();
+                    $this->store($list,$message);
                 }
                 elseif ($config['kavenegar'] && $config['kavenegar']['active']){
                     $api = new KavenegarApi($config['kavenegar']['api_key']);
-                    $results = $api->Send($config['kavenegar']['sender'],  $list['mobile'], $this->message);
+                    $results = $api->Send($config['kavenegar']['sender'],$list['mobile'], $message);
                     $this->type = 'kavenegar';
-                    $this->store();
+                    $this->store($list,$message);
                 }
             }
 
         }
+        return true;
 
 //        return response()->json($message);
     }
 
-    protected function store(){
-        $message = Message::create([
-            'customer_id' => $this->list_send['customer_id'],
-            'name'        => $this->list_send['name'],
+    protected function store($list,$message){
+        Message::create([
+            'customer_id' => $list['customer_id'],
+            'name'        => $list['name'],
             'user_id'     => $this->user_id,
-            'mobile'      => $this->mobile['name'],
-            'massage'     => $this->message,
+            'mobile'      => $list['mobile'],
+            'message'     => $message,
             'token'       => $this->token,
             'type'       => $this->type,
         ]);
